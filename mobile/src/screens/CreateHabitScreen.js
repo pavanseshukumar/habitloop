@@ -84,7 +84,11 @@ export function CreateHabitScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.heading}>BUILD A HABIT</Text>
+          {/* The question the screen exists to ask, asked once and left on the
+              page. It used to live inside the name field as its placeholder,
+              which meant the whole point of the screen disappeared on the first
+              keystroke -- now it stays, and the answer grows underneath it. */}
+          <Text style={styles.question}>What do you want to do?</Text>
 
           <HabitFormFields form={form} autoFocus />
         </ScrollView>
@@ -107,11 +111,12 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
   },
-  // A quiet marker, not a title: the question in the field below is the
-  // warmest thing on the screen, so it gets to be the largest thing too.
-  heading: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.xl,
+  // The anchor, not the loudest thing: it is set a clear step below the name
+  // field beneath it, because the answer the user types is what this screen is
+  // ultimately about and it should end up the largest thing on the page.
+  question: {
+    ...typography.h2,
+    color: colors.brand,
+    marginBottom: spacing.xxl,
   },
 });

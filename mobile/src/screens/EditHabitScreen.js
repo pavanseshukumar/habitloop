@@ -119,7 +119,10 @@ export function EditHabitScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}>
-          <Text style={styles.heading}>CHANGE THIS HABIT</Text>
+          {/* The same slot Create puts its question in, in the same words this
+              screen always used -- but stated rather than asked, and in the
+              quieter colour. Nothing is being decided here for the first time. */}
+          <Text style={styles.question}>Change this habit</Text>
 
           <HabitFormFields form={form} />
 
@@ -154,10 +157,10 @@ const styles = StyleSheet.create({
     paddingTop: spacing.xl,
     paddingBottom: spacing.xl,
   },
-  heading: {
-    ...typography.label,
-    color: colors.textMuted,
-    marginBottom: spacing.xl,
+  question: {
+    ...typography.h2,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxl,
   },
   // Set well below the last field, and left as words rather than given a shape:
   // retiring a habit should be findable, never the next thing your thumb hits.
