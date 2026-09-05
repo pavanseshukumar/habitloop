@@ -63,6 +63,30 @@ export const typography = {
     lineHeight: 20,
     letterSpacing: 0.2,
   },
+  // Today's greeting. Personal rather than a headline -- it sits under the
+  // wordmark and must not out-shout the habit names further down the screen.
+  greeting: {
+    fontFamily: fontFamily.bold,
+    fontSize: 26,
+    lineHeight: 32,
+    letterSpacing: -0.45,
+  },
+  // A habit's name in the list: the strongest functional type in the app, and
+  // the thing a returning user's eye should land on first.
+  habitName: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 22,
+    lineHeight: 28,
+    letterSpacing: -0.25,
+  },
+  // The wordmark lockup. Tracked tighter than the scale would give it so that
+  // "habit lOOp" reads as one name rather than two words.
+  wordmark: {
+    fontFamily: fontFamily.semibold,
+    fontSize: 20,
+    lineHeight: 26,
+    letterSpacing: -0.5,
+  },
   number: {
     fontFamily: fontFamily.semibold,
     fontSize: 32,

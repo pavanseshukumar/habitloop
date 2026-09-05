@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HabitItem } from '../components/HabitItem';
 import { ProgressSummary } from '../components/ProgressSummary';
@@ -14,15 +14,16 @@ import { COMPLETED_STATEMENT, RETURN_STATEMENT, formatDate, getDayVoice } from '
 import { isReturningHabit } from '../lib/recovery';
 import { nextScheduledDay, scheduledOn } from '../lib/schedule';
 import { useHabits } from '../store/habits';
-import { colors, radii, spacing, typography } from '../theme';
+import { colors, motion, radii, shadows, spacing, typography } from '../theme';
 
 /**
  * The first thing the user sees, and the answer to one question: what can I do
  * today?
  *
- * Reading order is the whole design -- date, greeting, a line of context, then
- * the habits themselves. Nothing above the habits is interactive, so the only
- * thing on screen that can be tapped is the thing worth tapping.
+ * Reading order is the whole design -- wordmark, greeting, date, a line of
+ * context, then the habits, and only then where the day stands. Nothing above
+ * the habits is interactive, so the only things on screen that can be tapped
+ * are the things worth tapping.
  */
 export function TodayScreen({ navigation }) {
   // Archived habits are excluded once, here, rather than filtered at each use.
@@ -95,11 +96,13 @@ export function TodayScreen({ navigation }) {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
-        <Wordmark variant="h3" style={styles.wordmark} />
+        <Wordmark style={styles.wordmark} />
 
+        {/* The greeting leads: it is the personal line, and the date is the
+            quiet fact underneath it rather than a header standing over it. */}
         <View style={styles.intro}>
-          <Text style={styles.date}>{today}</Text>
           <Text style={styles.greeting}>{voice.greeting}</Text>
+          <Text style={styles.date}>{today}</Text>
           <ContextStatement text={statement} />
         </View>
 
@@ -127,7 +130,6 @@ export function TodayScreen({ navigation }) {
               </View>
             ) : (
               <>
-                <ProgressSummary completed={completedCount} total={todaysHabits.length} />
                 <View style={styles.list}>
                   {todaysHabits.map((habit) => (
                     <HabitItem
@@ -139,17 +141,27 @@ export function TodayScreen({ navigation }) {
                     />
                   ))}
                 </View>
+
+                {/* Below the habits rather than above them: a closing summary
+                    of the day, not a target waiting for you on arrival. */}
+                <ProgressSummary completed={completedCount} total={todaysHabits.length} />
               </>
             )}
 
-            {/* Sits at the end of the list where the day runs out, rather than
-                floating over it. */}
+            {/* Sits at the end of the day's content rather than floating over
+                it. The gap above is what makes it read as a different kind of
+                thing from a habit, and the coral belongs to the plus alone --
+                enough to mark it as the additive action, far too little to
+                compete with a completion mark. */}
             <Pressable
               onPress={openCreate}
+              hitSlop={8}
               style={({ pressed }) => [styles.addRow, pressed && styles.addRowPressed]}
               accessibilityRole="button"
               accessibilityLabel="Add a habit">
-              <Text style={styles.addLabel}>+  Add a habit</Text>
+              <Text style={styles.addLabel}>
+                <Text style={styles.addPlus}>+</Text>  Add a habit
+              </Text>
             </Pressable>
           </View>
         )}
@@ -179,8 +191,8 @@ function ContextStatement({ text }) {
     arrival.setValue(0);
     Animated.timing(arrival, {
       toValue: 1,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
+      duration: motion.duration.base,
+      easing: motion.easing.out,
       useNativeDriver: true,
     }).start();
   }, [text, arrival]);
@@ -233,32 +245,37 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: spacing.xl,
   },
+  // Given real air beneath it so the wordmark reads as the app's signature
+  // rather than as a heading for the greeting.
   wordmark: {
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.huge,
   },
   intro: {
     marginBottom: spacing.xl,
   },
+  greeting: {
+    ...typography.greeting,
+    color: colors.brand,
+  },
   date: {
     ...typography.bodySmall,
     color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  greeting: {
-    ...typography.h1,
-    color: colors.brand,
+    marginTop: spacing.xs,
   },
   statement: {
     ...typography.body,
     color: colors.textSecondary,
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
   },
   breathe: {
     flex: 1,
     minHeight: spacing.xxl,
   },
+  // The rows carry their own vertical padding, so the list only needs lifting
+  // clear of the intro above and the progress bar below.
   list: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
   restBlock: {
     marginBottom: spacing.lg,
@@ -273,17 +290,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   addRow: {
-    paddingVertical: spacing.lg,
+    marginTop: spacing.xxl,
+    paddingVertical: spacing.md,
   },
   addRowPressed: {
-    opacity: 0.6,
+    opacity: 0.55,
   },
   addLabel: {
     ...typography.body,
     color: colors.textSecondary,
   },
+  addPlus: {
+    color: colors.accent,
+  },
   emptyTitle: {
-    ...typography.h2,
+    ...typography.h1,
     color: colors.text,
   },
   emptyBody: {
@@ -291,16 +312,20 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.sm,
   },
+  // The only lifted thing in the app, and only just: a soft shadow so the one
+  // available action sits slightly above the paper instead of printed on it.
   createButton: {
     alignSelf: 'flex-start',
-    marginTop: spacing.xl,
+    marginTop: spacing.xxl,
     backgroundColor: colors.brand,
     borderRadius: radii.pill,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
+    ...shadows.soft,
   },
   createButtonPressed: {
-    opacity: 0.85,
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
   },
   createLabel: {
     ...typography.button,

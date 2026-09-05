@@ -5,3 +5,4 @@ export { spacing } from './spacing';
 export { radii } from './radii';
 export { shadows } from './shadows';
 export { layout } from './layout';
+export { motion } from './motion';

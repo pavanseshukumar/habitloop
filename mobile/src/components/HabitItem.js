@@ -1,41 +1,46 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, spacing, typography } from '../theme';
-
-const COMPLETE_MS = 260;
-const UNDO_MS = 190;
-const PRESS_MS = 90;
+import { colors, motion, radii, spacing, typography } from '../theme';
 
 /**
  * A habit as a line of type, not a checkbox row.
  *
  * The row carries two full-height targets -- the words open the habit, the mark
- * completes it -- and one `progress` value drives the entire completion
- * transition so the mark, the check and the text all settle together instead of
- * snapping independently.
+ * completes it -- and they acknowledge touch differently on purpose: pressing
+ * the words lifts a soft surface under the whole row, pressing the mark presses
+ * only the mark. The row teaches its own two-target model by how it responds.
  *
- * Everything here is native-driven (opacity + transform only), so the
- * transition holds up while the list is being scrolled.
+ * At rest there is no card and no container. The surface exists only under a
+ * finger, which keeps the list editorial while still making it feel like there
+ * is something physical there when you reach for it.
+ *
+ * One `progress` value drives the entire completion transition so the mark, the
+ * check and the text settle together instead of snapping independently.
+ * Everything is native-driven (opacity + transform only), so it holds up while
+ * the list is being scrolled.
  */
 export function HabitItem({ habit, completed, onToggle, onOpen }) {
   const progress = useRef(new Animated.Value(completed ? 1 : 0)).current;
-  const press = useRef(new Animated.Value(0)).current;
+  const rowPress = useRef(new Animated.Value(0)).current;
+  const markPress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(progress, {
       toValue: completed ? 1 : 0,
-      duration: completed ? COMPLETE_MS : UNDO_MS,
-      easing: Easing.out(Easing.cubic),
+      // Undoing is quicker than deciding: taking something back should feel
+      // light, not like a second ceremony.
+      duration: completed ? motion.duration.base : motion.duration.quick,
+      easing: motion.easing.out,
       useNativeDriver: true,
     }).start();
   }, [completed, progress]);
 
-  const animatePress = (toValue) => {
-    Animated.timing(press, {
+  const animate = (value, toValue) => {
+    Animated.timing(value, {
       toValue,
-      duration: PRESS_MS,
-      easing: Easing.out(Easing.quad),
+      duration: motion.duration.press,
+      easing: motion.easing.press,
       useNativeDriver: true,
     }).start();
   };
@@ -46,28 +51,30 @@ export function HabitItem({ habit, completed, onToggle, onOpen }) {
     inputRange: [0, 0.5, 1],
     outputRange: [1, 1.07, 1],
   });
+  // The ring gives way early, so the coral is what grows into the space rather
+  // than something that lands on top of an outline still sitting there.
   const ringOpacity = progress.interpolate({
-    inputRange: [0, 0.45],
+    inputRange: [0, 0.35],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
   const fillOpacity = progress.interpolate({
-    inputRange: [0, 0.35],
+    inputRange: [0, 0.3],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   const fillScale = progress.interpolate({
-    inputRange: [0, 0.4, 1],
-    outputRange: [0.7, 1, 1],
+    inputRange: [0, 0.45, 1],
+    outputRange: [0.35, 1, 1],
   });
   const checkOpacity = progress.interpolate({
-    inputRange: [0.3, 0.75],
+    inputRange: [0.35, 0.75],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
   const checkScale = progress.interpolate({
-    inputRange: [0.3, 1],
-    outputRange: [0.6, 1],
+    inputRange: [0.35, 1],
+    outputRange: [0.5, 1],
     extrapolate: 'clamp',
   });
 
@@ -79,62 +86,84 @@ export function HabitItem({ habit, completed, onToggle, onOpen }) {
   });
   const contentShift = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 3],
-  });
-  const rowScale = press.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0.985],
+    outputRange: [0, 4],
   });
 
-  // Two targets, split down the row: the words open the habit, the mark
-  // completes it. Both run the full height of the row, so neither is a small
-  // thing to hit, and the mark keeps being the only thing that changes state.
+  const rowScale = rowPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.99] });
+  const markPressScale = markPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] });
+
   return (
-    <Animated.View style={[styles.row, { transform: [{ scale: rowScale }] }]}>
-      <Pressable
-        style={styles.textTarget}
-        onPress={() => onOpen(habit.id)}
-        onPressIn={() => animatePress(1)}
-        onPressOut={() => animatePress(0)}
-        accessibilityRole="button"
-        accessibilityLabel={habit.name}
-        accessibilityHint="Opens this habit's rhythm">
-        <Animated.View
-          style={{ opacity: contentOpacity, transform: [{ translateX: contentShift }] }}>
-          <Text style={styles.name}>{habit.name}</Text>
-          {habit.detail ? <Text style={styles.detail}>{habit.detail}</Text> : null}
-        </Animated.View>
-      </Pressable>
+    <View style={styles.wrap}>
+      {/* Bleeds into the screen gutter so a press reads as the row lighting up,
+          not as a box drawn inside it. */}
+      <Animated.View style={[styles.surface, { opacity: rowPress }]} pointerEvents="none" />
 
-      <Pressable
-        style={styles.markTarget}
-        onPress={() => onToggle(habit.id)}
-        onPressIn={() => animatePress(1)}
-        onPressOut={() => animatePress(0)}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: completed }}
-        accessibilityLabel={habit.name}
-        accessibilityHint={completed ? 'Marks this as not done' : 'Marks this as done'}>
-        <Animated.View style={[styles.mark, { transform: [{ scale: markScale }] }]}>
-          <Animated.View style={[styles.ring, { opacity: ringOpacity }]} />
+      <Animated.View style={[styles.row, { transform: [{ scale: rowScale }] }]}>
+        <Pressable
+          style={styles.textTarget}
+          onPress={() => onOpen(habit.id)}
+          onPressIn={() => animate(rowPress, 1)}
+          onPressOut={() => animate(rowPress, 0)}
+          accessibilityRole="button"
+          accessibilityLabel={habit.name}
+          accessibilityHint="Opens this habit's rhythm">
           <Animated.View
-            style={[styles.fill, { opacity: fillOpacity, transform: [{ scale: fillScale }] }]}
-          />
+            style={{ opacity: contentOpacity, transform: [{ translateX: contentShift }] }}>
+            <Text style={styles.name}>{habit.name}</Text>
+            {habit.detail ? <Text style={styles.detail}>{habit.detail}</Text> : null}
+          </Animated.View>
+        </Pressable>
+
+        <Pressable
+          style={styles.markTarget}
+          onPress={() => onToggle(habit.id)}
+          onPressIn={() => animate(markPress, 1)}
+          onPressOut={() => animate(markPress, 0)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: completed }}
+          accessibilityLabel={habit.name}
+          accessibilityHint={completed ? 'Marks this as not done' : 'Marks this as done'}>
           <Animated.View
             style={[
-              styles.check,
-              { opacity: checkOpacity, transform: [{ scale: checkScale }, { rotate: '-45deg' }] },
-            ]}
-          />
-        </Animated.View>
-      </Pressable>
-    </Animated.View>
+              styles.mark,
+              { transform: [{ scale: Animated.multiply(markScale, markPressScale) }] },
+            ]}>
+            {/* A ring rather than the rhythm grid's small waiting dot, and the
+                difference is deliberate: the grid is a record, this is a
+                control. Something you are meant to reach out and press has to
+                look like it has an edge to press. */}
+            <Animated.View style={[styles.ring, { opacity: ringOpacity }]} />
+            <Animated.View
+              style={[styles.fill, { opacity: fillOpacity, transform: [{ scale: fillScale }] }]}
+            />
+            <Animated.View
+              style={[
+                styles.check,
+                { opacity: checkOpacity, transform: [{ scale: checkScale }, { rotate: '-45deg' }] },
+              ]}
+            />
+          </Animated.View>
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }
 
 const MARK_SIZE = 30;
 
 const styles = StyleSheet.create({
+  wrap: {
+    justifyContent: 'center',
+  },
+  surface: {
+    position: 'absolute',
+    top: spacing.xs,
+    bottom: spacing.xs,
+    left: -spacing.md,
+    right: -spacing.md,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surfaceMuted,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -152,7 +181,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   name: {
-    ...typography.h2,
+    ...typography.habitName,
     color: colors.text,
   },
   detail: {
@@ -174,7 +203,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: MARK_SIZE / 2,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong,
+    borderColor: colors.markWaiting,
   },
   fill: {
     position: 'absolute',
@@ -183,7 +212,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: MARK_SIZE / 2,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.markDone,
   },
   // Two borders on a rotated box: a checkmark with no icon font to load.
   check: {

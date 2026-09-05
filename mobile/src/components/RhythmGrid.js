@@ -8,10 +8,16 @@ import { colors, spacing, typography } from '../theme';
 /**
  * Four weeks of a habit, read at a glance.
  *
- * Filled coral is a day it happened. A day it was due and did not happen is a
- * quiet outline -- present, but carrying no colour and no weight. Days the
- * habit was never due are barely there, and days outside its life are simply
- * absent. Nothing on this grid is red, and nothing counts against anything.
+ * The whole grid is one sentence: a small grey dot grows into a large coral
+ * mark. A day the habit was due and has not happened yet is a quiet solid dot
+ * -- something waiting to be filled, deliberately not an empty outline, which
+ * reads as a hole where something should have been. Days the habit was never
+ * due are fainter and smaller still, and days outside its life are simply
+ * absent.
+ *
+ * Nothing here is red, nothing is a warning, and nothing counts against
+ * anything. Size and colour both carry the state, so the difference survives
+ * without colour vision as well as with it.
  */
 export function RhythmGrid({ habit, completions, today }) {
   const weeks = toWeeks(buildRhythm(habit, completions, today));
@@ -54,8 +60,8 @@ function RhythmDay({ day }) {
       accessibilityLabel={`${formatDate(day.date)}, ${DESCRIPTIONS[day.state]}`}>
       <View style={styles.markBox}>
         {day.state === 'completed' ? <View style={styles.completed} /> : null}
-        {day.state === 'scheduled' ? <View style={styles.scheduled} /> : null}
-        {day.state === 'unscheduled' ? <View style={styles.unscheduled} /> : null}
+        {day.state === 'scheduled' ? <View style={styles.waiting} /> : null}
+        {day.state === 'unscheduled' ? <View style={styles.idle} /> : null}
       </View>
 
       {/* Today is marked underneath rather than on the mark itself, so it never
@@ -66,6 +72,8 @@ function RhythmDay({ day }) {
 }
 
 const MARK_SIZE = 32;
+const WAITING_SIZE = 10;
+const IDLE_SIZE = 4;
 
 const styles = StyleSheet.create({
   week: {
@@ -92,22 +100,21 @@ const styles = StyleSheet.create({
     width: MARK_SIZE,
     height: MARK_SIZE,
     borderRadius: MARK_SIZE / 2,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.markDone,
   },
-  scheduled: {
-    width: MARK_SIZE,
-    height: MARK_SIZE,
-    borderRadius: MARK_SIZE / 2,
-    borderWidth: 1.5,
-    // borderStrong, matching the empty completion mark on Today, so an
-    // untouched day reads the same in both places.
-    borderColor: colors.borderStrong,
+  // Solid, small and neutral. The same dot Today shows inside an uncompleted
+  // habit's mark, so a day waiting to be filled looks identical in both places.
+  waiting: {
+    width: WAITING_SIZE,
+    height: WAITING_SIZE,
+    borderRadius: WAITING_SIZE / 2,
+    backgroundColor: colors.markWaiting,
   },
-  unscheduled: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.border,
+  idle: {
+    width: IDLE_SIZE,
+    height: IDLE_SIZE,
+    borderRadius: IDLE_SIZE / 2,
+    backgroundColor: colors.markIdle,
   },
   todayDot: {
     width: 4,

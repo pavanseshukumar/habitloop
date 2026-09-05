@@ -54,6 +54,13 @@ export const colors = {
   border: palette.sand300,
   borderStrong: palette.sand500,
 
+  // Rhythm marks. The whole point of this scale is that a day still waiting to
+  // be filled is *neutral* -- it is not a miss, not a warning, and must never
+  // drift toward red or amber. Only a day that happened carries colour.
+  markDone: palette.coral500,
+  markWaiting: palette.sand500,
+  markIdle: palette.sand300,
+
   // Effects
   shadow: palette.blue900,
 };
