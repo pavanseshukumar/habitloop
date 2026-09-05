@@ -87,10 +87,23 @@ export const typography = {
     lineHeight: 26,
     letterSpacing: -0.5,
   },
-  number: {
+  // A habit's own name on its detail screen: the subject of the page, and the
+  // largest thing on it. Semibold rather than bold, and a step under h1 -- this
+  // is a name being stated, not a headline being announced.
+  habitTitle: {
     fontFamily: fontFamily.semibold,
-    fontSize: 32,
-    lineHeight: 36,
-    letterSpacing: -0.6,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.5,
+  },
+  // The recognition sentence: "You have shown up 18 times." Sized between body
+  // and h3 so it carries weight as a statement, and deliberately not a number
+  // style -- the count belongs inside a sentence, not on a dial. The emphasis
+  // within it comes from weight and colour, never from size.
+  recognition: {
+    fontFamily: fontFamily.regular,
+    fontSize: 19,
+    lineHeight: 28,
+    letterSpacing: -0.1,
   },
 };

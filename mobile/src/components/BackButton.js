@@ -5,13 +5,17 @@ import { colors, layout, spacing } from '../theme';
 /**
  * The unobtrusive way back, shared by every pushed screen so they all sit the
  * chevron in the same place.
+ *
+ * It answers a touch the same way Today's quieter actions do -- by fading,
+ * rather than by growing a background. The target stays a full 48pt square; the
+ * only thing that dims is the chevron drawn in the middle of it.
  */
 export function BackButton({ onPress }) {
   return (
     <Pressable
       onPress={onPress}
       hitSlop={12}
-      style={styles.button}
+      style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       accessibilityRole="button"
       accessibilityLabel="Go back">
       <View style={styles.chevron} />
@@ -25,6 +29,9 @@ const styles = StyleSheet.create({
     height: layout.touchTarget,
     justifyContent: 'center',
     marginLeft: -spacing.md,
+  },
+  pressed: {
+    opacity: 0.5,
   },
   // The same two-border trick as the completion check, pointed left.
   chevron: {
