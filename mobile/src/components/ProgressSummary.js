@@ -56,10 +56,14 @@ const styles = StyleSheet.create({
   countDone: {
     color: colors.accent,
   },
+  // The one place the two brand colours meet in a single object: the day
+  // still to come is cool structure, the part you have done is coral. Cooling
+  // the track is also what stops the bar reading as coral-on-sand, which was
+  // the warmest, least branded thing on the screen.
   track: {
     height: TRACK_HEIGHT,
     borderRadius: TRACK_HEIGHT / 2,
-    backgroundColor: colors.border,
+    backgroundColor: colors.markIdle,
     overflow: 'hidden',
   },
   fill: {

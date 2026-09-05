@@ -67,7 +67,10 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: colors.textOnBrand,
   },
+  // Still legible, not greyed to the edge of readable: the shape and the flat
+  // fill already say the button is not ready, and the user still needs to know
+  // what it is going to do once it is.
   labelDisabled: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
   },
 });

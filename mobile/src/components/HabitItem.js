@@ -25,6 +25,23 @@ export function HabitItem({ habit, completed, onToggle, onOpen }) {
   const rowPress = useRef(new Animated.Value(0)).current;
   const markPress = useRef(new Animated.Value(0)).current;
 
+  // Runs once, when the row first exists. Today stays mounted underneath the
+  // rest of the stack, so returning from a habit or from Create does not
+  // re-mount the rows that were already there -- which means the only time a
+  // single row plays this alone is the moment a habit the user just wrote down
+  // arrives in the list. No new state and nothing to schedule: the animation is
+  // simply what mounting looks like.
+  const arrival = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(arrival, {
+      toValue: 1,
+      duration: motion.duration.settle,
+      easing: motion.easing.out,
+      useNativeDriver: true,
+    }).start();
+  }, [arrival]);
+
   useEffect(() => {
     Animated.timing(progress, {
       toValue: completed ? 1 : 0,
@@ -92,8 +109,11 @@ export function HabitItem({ habit, completed, onToggle, onOpen }) {
   const rowScale = rowPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.99] });
   const markPressScale = markPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.88] });
 
+  const arrivalShift = arrival.interpolate({ inputRange: [0, 1], outputRange: [8, 0] });
+
   return (
-    <View style={styles.wrap}>
+    <Animated.View
+      style={[styles.wrap, { opacity: arrival, transform: [{ translateY: arrivalShift }] }]}>
       {/* Bleeds into the screen gutter so a press reads as the row lighting up,
           not as a box drawn inside it. */}
       <Animated.View style={[styles.surface, { opacity: rowPress }]} pointerEvents="none" />
@@ -145,7 +165,7 @@ export function HabitItem({ habit, completed, onToggle, onOpen }) {
           </Animated.View>
         </Pressable>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 

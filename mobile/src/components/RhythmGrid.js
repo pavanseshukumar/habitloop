@@ -210,9 +210,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     backgroundColor: 'transparent',
   },
-  // A step darker than the muted greys around it. Today has to be findable
-  // without being announced, and four points of neutral blue is the whole of it.
+  // Brand blue, and the darkest thing in the grid by a distance. Once the
+  // waiting dots became blue-grey a mid-tone marker stopped standing apart from
+  // them; four points of the full brand colour is unmistakably "you are here"
+  // and still far too small to compete with a coral mark.
   todayDotVisible: {
-    backgroundColor: colors.textSecondary,
+    backgroundColor: colors.brand,
   },
 });

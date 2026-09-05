@@ -22,8 +22,10 @@ const VOICE = {
     greeting: 'Good morning',
     statement: 'Small actions become something bigger.',
   },
+  // Just the time of day. The statement below already says something about
+  // rhythm, and two lines saying it in a row read as one line stuttering.
   midday: {
-    greeting: 'Keep your rhythm going',
+    greeting: 'Good afternoon',
     statement: 'Keep building your rhythm.',
   },
   evening: {

@@ -70,7 +70,7 @@ export function HabitFormFields({ form, autoFocus = false, namePlaceholder }) {
       <Text style={styles.question}>How often?</Text>
 
       {/* The same mark the rest of the app uses for a choice that has been
-          made: a quiet ring that fills coral. A segmented control would say
+          made: a quiet ring that fills in. A segmented control would say
           "setting"; this says "chosen", in the language Today already speaks. */}
       <View style={styles.frequencyRow} accessibilityRole="radiogroup">
         <FrequencyOption
@@ -150,7 +150,7 @@ function FrequencyOption({ label, selected, onPress }) {
     }).start();
   };
 
-  // The ring gives way just before the coral arrives, so the fill grows into
+  // The ring gives way just before the fill arrives, so the blue grows into
   // the space rather than landing on top of an outline still sitting there.
   const ringOpacity = fill.interpolate({
     inputRange: [0, 0.4],
@@ -335,6 +335,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.markWaiting,
   },
+  // Blue, not coral, and for the same reason the weekday circles below are
+  // blue: this is a rhythm being chosen, not a day that happened. Coral here
+  // would make picking a frequency look like completing something.
   frequencyFill: {
     position: 'absolute',
     top: 0,
@@ -342,7 +345,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: MARK_SIZE / 2,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.brand,
   },
   frequencyLabel: {
     ...typography.body,
@@ -362,9 +365,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // The same unchosen blue-grey as the frequency ring above, not the warm rule
+  // colour used under the fields: an empty day is a mark waiting to be filled,
+  // and at 1px it needs the contrast to read as something you can press.
   day: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.markWaiting,
     alignItems: 'center',
     justifyContent: 'center',
   },
