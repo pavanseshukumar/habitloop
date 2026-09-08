@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { TimePickerModal } from './TimePickerModal';
 import { WEEKDAYS } from '../data/weekdays';
-import { colors, motion, spacing, typography } from '../theme';
+import { requestPermission } from '../lib/notifications';
+import { formatReminderTime } from '../lib/reminders';
+import { motion, spacing, typography, useTheme, useThemedStyles } from '../theme';
 
 /**
  * The fields a habit is made of: what it is, an optional word of support, and
@@ -19,6 +22,8 @@ import { colors, motion, spacing, typography } from '../theme';
  * supplies everything after it.
  */
 export function HabitFormFields({ form, autoFocus = false, namePlaceholder }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [focusedField, setFocusedField] = useState(null);
 
   const needsADay = form.frequency === 'selected' && form.days.length === 0;
@@ -96,7 +101,103 @@ export function HabitFormFields({ form, autoFocus = false, namePlaceholder }) {
           {needsADay ? <Text style={styles.hint}>Pick at least one day.</Text> : null}
         </>
       ) : null}
+
+      <ReminderField form={form} />
     </View>
+  );
+}
+
+/**
+ * The third and smallest question: would a nudge help?
+ *
+ * Asked in the same two marks as "How often?", because it is the same kind of
+ * question, and answered Off by default because a habit app that turns on
+ * notifications for you has decided something that was not its to decide.
+ *
+ * The permission prompt lives here and only here, on the single tap that turns
+ * a reminder on. Opening this screen asks nothing; leaving the reminder alone
+ * asks nothing. If the system says no, the answer stays Off and the screen
+ * says so quietly -- the alternative, showing On while nothing can be
+ * delivered, would be a lie the user only discovers by not being reminded.
+ */
+function ReminderField({ form }) {
+  const styles = useThemedStyles(makeStyles);
+  const [picking, setPicking] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+
+  const turnOn = async () => {
+    setBlocked(false);
+
+    const status = await requestPermission();
+    if (status === 'granted') {
+      form.enableReminder();
+      return;
+    }
+
+    // Left off on purpose. The habit still saves; only the nudge is missing.
+    setBlocked(true);
+  };
+
+  const turnOff = () => {
+    setBlocked(false);
+    form.disableReminder();
+  };
+
+  // The one place a chosen time reaches the habit, and still the same call
+  // it always was: the form records it, the store saves it on save, and the
+  // existing reconcile books it. Nothing here talks to the notification layer.
+  const onPickTime = (hour, minute) => {
+    setPicking(false);
+    form.setReminderTime(hour, minute);
+  };
+
+  return (
+    <>
+      <Text style={styles.question}>Reminder</Text>
+
+      <View style={styles.frequencyRow} accessibilityRole="radiogroup">
+        <FrequencyOption label="Off" selected={!form.reminder.enabled} onPress={turnOff} />
+        <FrequencyOption label="On" selected={form.reminder.enabled} onPress={turnOn} />
+      </View>
+
+      {form.reminder.enabled ? (
+        <Pressable
+          onPress={() => setPicking(true)}
+          hitSlop={8}
+          style={({ pressed }) => [styles.timeAction, pressed && styles.timePressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`Reminder time, ${formatReminderTime(
+            form.reminder.hour,
+            form.reminder.minute
+          )}`}
+          accessibilityHint="Opens a time picker">
+          <Text style={styles.timeValue}>
+            {formatReminderTime(form.reminder.hour, form.reminder.minute)}
+          </Text>
+          <Text style={styles.timeNote}>On the days this habit comes round.</Text>
+        </Pressable>
+      ) : null}
+
+      {/* Said once, and only to someone who just tried. No red, no icon, and
+          no second attempt at the prompt -- the way back is system settings,
+          so that is what it points at. */}
+      {blocked ? (
+        <Text style={styles.hint}>
+          Notifications are off. You can turn them on in system settings.
+        </Text>
+      ) : null}
+
+      {/* Cancelling and choosing are separate callbacks, so backing out of the
+          panel leaves the existing time exactly as it was: only onConfirm ever
+          reaches the form. */}
+      <TimePickerModal
+        visible={picking}
+        hour={form.reminder.hour}
+        minute={form.reminder.minute}
+        onCancel={() => setPicking(false)}
+        onConfirm={onPickTime}
+      />
+    </>
   );
 }
 
@@ -109,6 +210,7 @@ export function HabitFormFields({ form, autoFocus = false, namePlaceholder }) {
  * changing its border colour.
  */
 function FieldRule({ focused, strong = false }) {
+  const styles = useThemedStyles(makeStyles);
   const lit = useRef(new Animated.Value(focused ? 1 : 0)).current;
 
   useEffect(() => {
@@ -129,6 +231,7 @@ function FieldRule({ focused, strong = false }) {
 }
 
 function FrequencyOption({ label, selected, onPress }) {
+  const styles = useThemedStyles(makeStyles);
   const fill = useRef(new Animated.Value(selected ? 1 : 0)).current;
   const press = useRef(new Animated.Value(0)).current;
 
@@ -191,6 +294,7 @@ function FrequencyOption({ label, selected, onPress }) {
  * never overflow a narrow screen -- the circles shrink, they do not clip.
  */
 function WeekdayPicker({ days, onToggle }) {
+  const styles = useThemedStyles(makeStyles);
   const [size, setSize] = useState(DAY_MAX);
 
   const onLayout = (event) => {
@@ -215,6 +319,7 @@ function WeekdayPicker({ days, onToggle }) {
 }
 
 function DayToggle({ weekday, size, selected, onPress }) {
+  const styles = useThemedStyles(makeStyles);
   const press = useRef(new Animated.Value(0)).current;
 
   const animatePress = (toValue) => {
@@ -264,7 +369,8 @@ const DAY_MIN = 34;
 const DAY_GUTTER = 8;
 const DAY_TARGET = 48;
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   // Given room to breathe above the rule: the name is the one thing on this
   // screen the user writes themselves, and it should feel like it has a page.
   nameInput: {
@@ -394,4 +500,23 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.md,
   },
-});
+  // Indented to sit under the "On" it belongs to, and left as words rather
+  // than given a field: it is the answer to a question already asked.
+  timeAction: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    alignSelf: 'flex-start',
+  },
+  timePressed: {
+    opacity: motion.pressed.fade,
+  },
+  timeValue: {
+    ...typography.h3,
+    color: colors.text,
+  },
+  timeNote: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
+  },
+  });

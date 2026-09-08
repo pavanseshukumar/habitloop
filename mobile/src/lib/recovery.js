@@ -1,6 +1,7 @@
 import { completedDatesFor, isCompletedOn } from './completions';
 import { addDays, fromDateKey, toDateKey } from './dates';
-import { isScheduledOn, matchesSchedule } from './schedule';
+import { wasScheduledOn } from './history';
+import { isScheduledOn } from './schedule';
 
 /**
  * Returning after a gap -- derived, never stored.
@@ -13,6 +14,12 @@ import { isScheduledOn, matchesSchedule } from './schedule';
  * The one thing this module deliberately does not produce is a number. How
  * long someone was away is not the app's business: a person coming back after
  * one day and a person coming back after three weeks are doing the same thing.
+ *
+ * A stretch the habit was archived for is not a gap at all. Those days were
+ * never asked for, so picking a habit back up after a season away is a
+ * continuation rather than a recovery, and the app has nothing to notice about
+ * it -- which is the correct amount to say about a decision the user made on
+ * purpose.
  */
 
 /**
@@ -77,8 +84,9 @@ function hasScheduledGapBetween(habit, previousKey, todayKey) {
 
   // Today is excluded on purpose: it is the day being offered, not a day missed.
   while (toDateKey(cursor) < todayKey) {
-    // The plain schedule question, matching how the rhythm grid reads history.
-    if (matchesSchedule(habit, cursor)) return true;
+    // The same historical question the rhythm grid asks, which is what keeps
+    // the two agreeing about what an empty day meant.
+    if (wasScheduledOn(habit, cursor)) return true;
     cursor = addDays(cursor, 1);
   }
 

@@ -10,7 +10,7 @@ import { getHabitInsight } from '../lib/insights';
 import { buildRhythm, countCompleted } from '../lib/rhythm';
 import { useToday } from '../hooks/useToday';
 import { useHabits } from '../store/habits';
-import { colors, layout, motion, spacing, typography } from '../theme';
+import { layout, motion, spacing, typography, useThemedStyles } from '../theme';
 
 /**
  * One habit, and how it has actually been going.
@@ -29,8 +29,9 @@ import { colors, layout, motion, spacing, typography } from '../theme';
  * from, and one quiet observation about it.
  */
 export function HabitDetailScreen({ navigation, route }) {
+  const styles = useThemedStyles(makeStyles);
   const { habitId } = route.params;
-  const { habits, completions } = useHabits();
+  const { habits, completions, restoreHabit } = useHabits();
 
   // Shared with Today so the grid, the insight and the day marker all agree
   // about which day it is, even after the app has been open overnight.
@@ -69,21 +70,33 @@ export function HabitDetailScreen({ navigation, route }) {
 
   const lifetimeCount = completedDatesFor(completions, habit.id).length;
   const recentCount = countCompleted(buildRhythm(habit, completions, now));
-  const note = getRhythmNote(lifetimeCount, recentCount);
+  const note = getRhythmNote(lifetimeCount, recentCount, { archived: isArchived });
   // Usually null. It appears only once the history says something a person
   // would agree with, which for most habits is a long way in.
   const insight = getHabitInsight(habit, completions, now);
 
   return (
     <Screen>
-      {/* Edit sits up here as three quiet letters rather than a button. It is
+      {/* Edit sits up here as four quiet letters rather than a button. It is
           reachable in one tap, and still the smallest thing on a screen whose
           job is the rhythm below it. An archived habit has nothing to change,
-          so it simply is not offered one. */}
+          so the same slot offers the one thing it can do instead: start again.
+          No confirmation, because continuing a habit costs nothing and archiving
+          it again is one screen away. */}
       <View style={styles.header}>
         <BackButton onPress={() => navigation.goBack()} />
 
-        {isArchived ? null : (
+        {isArchived ? (
+          <Pressable
+            onPress={() => restoreHabit(habit.id)}
+            hitSlop={12}
+            style={({ pressed }) => [styles.editAction, pressed && styles.editPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Continue this habit"
+            accessibilityHint="Makes this habit active again">
+            <Text style={styles.editLabel}>Continue</Text>
+          </Pressable>
+        ) : (
           <Pressable
             onPress={() => navigation.navigate('EditHabit', { habitId: habit.id })}
             hitSlop={12}
@@ -104,10 +117,23 @@ export function HabitDetailScreen({ navigation, route }) {
 
           {/* Said once, plainly, and then the screen carries on exactly as it
               did before -- what the user built is still all here to read. */}
-          {isArchived ? <Text style={styles.archived}>Archived. Your history is kept.</Text> : null}
+          {isArchived ? (
+            <Text style={styles.archived}>
+              Archived. Your history is kept, and you can continue it whenever you want.
+            </Text>
+          ) : null}
 
           <View style={styles.recognition}>
-            {lifetimeCount === 0 ? (
+            {lifetimeCount === 0 && isArchived ? (
+              // A habit that was put down before it was ever done. The line
+              // below points forward, and there is nothing left to point
+              // forward to -- offering to begin something the user has just
+              // closed reads as the screen not having noticed. Said plainly and
+              // in the past, with no blame in it: not starting is not a failure,
+              // and the notice above already says the record is theirs to
+              // continue whenever they want.
+              <Text style={styles.recognitionLine}>Nothing was recorded for this one.</Text>
+            ) : lifetimeCount === 0 ? (
               // Nothing has happened yet, and the copy is the only thing that
               // says so. The grid below stays quiet rather than filling with
               // zeroes, and this line points forward instead of at the gap.
@@ -178,7 +204,8 @@ function Band({ entrance, band, style, children }) {
   return <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>{children}</Animated.View>;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -193,7 +220,7 @@ const styles = StyleSheet.create({
     marginRight: -spacing.md,
   },
   editPressed: {
-    opacity: 0.6,
+    opacity: motion.pressed.fade,
   },
   editLabel: {
     ...typography.body,
@@ -255,4 +282,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xl,
   },
-});
+  });

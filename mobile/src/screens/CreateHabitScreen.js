@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -9,12 +8,13 @@ import {
 } from 'react-native';
 
 import { BackButton } from '../components/BackButton';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { HabitFormFields } from '../components/HabitFormFields';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { useHabitForm } from '../hooks/useHabitForm';
 import { useHabits } from '../store/habits';
-import { colors, spacing, typography } from '../theme';
+import { spacing, typography, useThemedStyles } from '../theme';
 
 /**
  * One question, asked large: what do you want to do?
@@ -25,12 +25,19 @@ import { colors, spacing, typography } from '../theme';
  * before the user has even decided they mean it.
  */
 export function CreateHabitScreen({ navigation }) {
+  const styles = useThemedStyles(makeStyles);
   const { addHabit } = useHabits();
   const form = useHabitForm(null);
 
   // Set while saving so the discard prompt below does not fire on our own
   // navigation back to Today.
   const isSaving = useRef(false);
+
+  // The leaving that was interrupted, held until the user answers. Holding the
+  // navigation action itself rather than a boolean is what lets the chevron,
+  // the hardware back button and the back gesture all be resumed exactly as
+  // they were meant.
+  const [pendingExit, setPendingExit] = useState(null);
 
   // Covers the chevron, the hardware back button and the back gesture in one
   // place -- they all funnel through the same navigation event. Typed words are
@@ -41,18 +48,7 @@ export function CreateHabitScreen({ navigation }) {
       if (isSaving.current || !form.hasText) return;
 
       event.preventDefault();
-      Alert.alert(
-        'Discard this habit?',
-        'What you have typed will not be saved.',
-        [
-          { text: 'Keep editing', style: 'cancel' },
-          {
-            text: 'Discard',
-            style: 'destructive',
-            onPress: () => navigation.dispatch(event.data.action),
-          },
-        ]
-      );
+      setPendingExit(event.data.action);
     });
 
     return unsubscribe;
@@ -95,11 +91,30 @@ export function CreateHabitScreen({ navigation }) {
 
         <PrimaryButton label="Create habit" onPress={onCreate} disabled={!form.canSave} />
       </KeyboardAvoidingView>
+
+      {/* The same question the platform alert asked, in the app's own paper.
+          Cancelling simply forgets the interrupted exit and leaves every word
+          on screen; discarding resumes it. */}
+      <ConfirmationModal
+        visible={pendingExit !== null}
+        title="Discard this habit?"
+        message="What you have typed will not be saved."
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        destructive
+        onCancel={() => setPendingExit(null)}
+        onConfirm={() => {
+          const action = pendingExit;
+          setPendingExit(null);
+          navigation.dispatch(action);
+        }}
+      />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -119,4 +134,4 @@ const styles = StyleSheet.create({
     color: colors.brand,
     marginBottom: spacing.xxl,
   },
-});
+  });

@@ -1,89 +1,64 @@
+import { dark, darkShadows } from './dark';
+import { light, lightShadows } from './light';
+
 /**
- * Habit Loop palette.
+ * The two atmospheres, and how a preference becomes one of them.
  *
- * Three colours carry the whole product, and each one means something:
+ * Everything here is a plain function over plain data -- no Appearance API, no
+ * storage, no React. Which theme is in force is a decision with two inputs and
+ * a handful of rules, and keeping those rules reachable without a device is
+ * what lets them be tested. ThemeProvider supplies the inputs; this decides.
  *
- *   WARM PAPER   the environment. Everything is printed on it.
- *   DEEP BLUE    intent. What you chose, what is due, what commits.
- *   CORAL        what happened. Completion, progress, the additive action.
- *
- * Neutrals support the system rather than joining it, and they are split by
- * job rather than by shade: LINES are warm sand, because a rule on paper is
- * part of the paper; MARKS are cool blue-grey, because a mark is something
- * placed on it. That is why an unfilled rhythm dot and an unfilled completion
- * ring read as the same family while a field's underline does not.
- *
- * The one rule worth stating out loud: coral is never used for a state the
- * user merely selected. A day you chose is blue; a day you showed up for is
- * coral. Blurring those two is what turns a record into decoration.
- *
- * Only semantic names are exported. Never import a raw hex from here into a
- * component -- add a semantic token instead.
+ * Both palettes export exactly the same token names, which is the property the
+ * whole feature rests on: no component ever asks which theme is running, it
+ * just reads `colors.textSecondary` and gets the right answer.
  */
+export const themes = { light, dark };
+export const themeShadows = { light: lightShadows, dark: darkShadows };
 
-// Raw ramp. Private to this file.
-const palette = {
-  blue900: '#0F2437',
-  blue800: '#18324A', // brand
-  blue600: '#2F5171',
-  blue400: '#5F7385',
-  blue300: '#8090A0',
-  blue200: '#8A99A6',
-  blue150: '#C2CBD3',
+/**
+ * What the user can choose.
+ *
+ * `system` is a real third option rather than the absence of a choice -- it
+ * means "keep following the device", which is different from having picked the
+ * value the device happens to be showing right now.
+ */
+export const THEME_MODES = ['system', 'light', 'dark'];
 
-  coral500: '#F47B68', // accent
-  coral300: '#F9AA9C',
-  coral100: '#FDE7E1',
+/** The mode a fresh install starts in: whatever the phone is already doing. */
+export const DEFAULT_THEME_MODE = 'system';
 
-  paper: '#FBF8F5',
-  paperDeep: '#F3EDE7',
-  white: '#FFFFFF',
+export function isThemeMode(value) {
+  return THEME_MODES.includes(value);
+}
 
-  sand300: '#E7DED5',
-  sand500: '#D6C9BD',
-};
+/**
+ * Reads a stored preference, falling back rather than failing.
+ *
+ * A preference read from disk can be anything -- absent on a first launch, or
+ * left behind by a build that offered a mode this one does not. Neither is
+ * worth an error: the device's own appearance is a safe answer to every
+ * question this setting asks.
+ */
+export function normalizeThemeMode(value) {
+  return isThemeMode(value) ? value : DEFAULT_THEME_MODE;
+}
 
-export const colors = {
-  // Surfaces
-  background: palette.paper,
-  surface: palette.white,
-  surfaceMuted: palette.paperDeep,
+/**
+ * The mode plus the device's scheme, resolved to the theme actually in force.
+ *
+ * `systemScheme` is whatever React Native reports, and it is allowed to be
+ * null: the OS returns null when it has no preference to give, and the answer
+ * then is light, the same way the app looked before it had a choice.
+ */
+export function resolveScheme(themeMode, systemScheme) {
+  const mode = normalizeThemeMode(themeMode);
+  if (mode === 'light' || mode === 'dark') return mode;
 
-  // Brand
-  brand: palette.blue800,
-  brandStrong: palette.blue900,
-  brandSoft: palette.blue600,
+  return systemScheme === 'dark' ? 'dark' : 'light';
+}
 
-  accent: palette.coral500,
-  accentSoft: palette.coral300,
-  accentSurface: palette.coral100,
-
-  // Text
-  text: palette.blue800,
-  textSecondary: palette.blue400,
-  textMuted: palette.blue200,
-  textOnBrand: palette.paper,
-  textOnAccent: palette.white,
-
-  // Lines. Warm, because a rule belongs to the paper it is drawn on.
-  border: palette.sand300,
-  borderStrong: palette.sand500,
-
-  // Marks. Cool, because a mark is placed on the paper rather than part of it.
-  //
-  // The whole point of this scale is that a day still waiting to be filled is
-  // *neutral* -- it is not a miss, not a warning, and must never drift toward
-  // red or amber. Only a day that happened carries warmth.
-  //
-  // markWaiting is one token on purpose. It draws Today's completion ring, the
-  // rhythm grid's waiting dot and the form's unchosen frequency mark, so those
-  // three read as the same idea in three sizes rather than three inventions. It
-  // clears 3:1 against paper, which the old warm sand did not -- a control you
-  // are meant to press has to be findable.
-  markDone: palette.coral500,
-  markWaiting: palette.blue300,
-  markIdle: palette.blue150,
-
-  // Effects
-  shadow: palette.blue900,
-};
+/** The palette itself, for anything that wants the end of that chain. */
+export function themeFor(themeMode, systemScheme) {
+  return themes[resolveScheme(themeMode, systemScheme)];
+}

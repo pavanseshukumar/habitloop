@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,12 +9,13 @@ import {
 } from 'react-native';
 
 import { BackButton } from '../components/BackButton';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { HabitFormFields } from '../components/HabitFormFields';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { Screen } from '../components/Screen';
 import { useHabitForm } from '../hooks/useHabitForm';
 import { useHabits } from '../store/habits';
-import { colors, spacing, typography } from '../theme';
+import { motion, spacing, typography, useThemedStyles } from '../theme';
 
 /**
  * The same questions as creating a habit, asked again later.
@@ -29,6 +29,7 @@ import { colors, spacing, typography } from '../theme';
  * where anyone could reach it by accident.
  */
 export function EditHabitScreen({ navigation, route }) {
+  const styles = useThemedStyles(makeStyles);
   const { habitId } = route.params;
   const { habits, updateHabit, archiveHabit } = useHabits();
 
@@ -50,6 +51,11 @@ export function EditHabitScreen({ navigation, route }) {
   // own navigation away.
   const isLeaving = useRef(false);
 
+  // The two questions this screen asks: an interrupted exit, held as the
+  // navigation action it was, and whether to archive.
+  const [pendingExit, setPendingExit] = useState(null);
+  const [confirmingArchive, setConfirmingArchive] = useState(false);
+
   // Only a real change is worth interrupting for -- opening this screen and
   // backing straight out must stay silent.
   useEffect(() => {
@@ -57,14 +63,7 @@ export function EditHabitScreen({ navigation, route }) {
       if (isLeaving.current || !form.isDirty) return;
 
       event.preventDefault();
-      Alert.alert('Discard changes?', 'This habit will stay as it is.', [
-        { text: 'Keep editing', style: 'cancel' },
-        {
-          text: 'Discard',
-          style: 'destructive',
-          onPress: () => navigation.dispatch(event.data.action),
-        },
-      ]);
+      setPendingExit(event.data.action);
     });
 
     return unsubscribe;
@@ -87,20 +86,14 @@ export function EditHabitScreen({ navigation, route }) {
     navigation.goBack();
   };
 
-  const onArchive = () => {
-    Alert.alert('Archive this habit?', 'Your history will stay saved.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Archive habit',
-        onPress: () => {
-          isLeaving.current = true;
-          archiveHabit(habitId);
-          // Past HabitDetail, which has nothing left to show, and back to the
-          // day itself.
-          navigation.popTo('Today');
-        },
-      },
-    ]);
+  // Unchanged in every respect but where the question is drawn: the same
+  // store action, the same exit past a HabitDetail that has nothing left to
+  // show, and the same reconcile behind it.
+  const onArchiveConfirmed = () => {
+    setConfirmingArchive(false);
+    isLeaving.current = true;
+    archiveHabit(habitId);
+    navigation.popTo('Today');
   };
 
   return (
@@ -127,7 +120,7 @@ export function EditHabitScreen({ navigation, route }) {
           <HabitFormFields form={form} />
 
           <Pressable
-            onPress={onArchive}
+            onPress={() => setConfirmingArchive(true)}
             hitSlop={8}
             style={({ pressed }) => [styles.archiveAction, pressed && styles.archivePressed]}
             accessibilityRole="button"
@@ -141,11 +134,37 @@ export function EditHabitScreen({ navigation, route }) {
 
         <PrimaryButton label="Save changes" onPress={onSave} disabled={!form.canSave} />
       </KeyboardAvoidingView>
+
+      <ConfirmationModal
+        visible={confirmingArchive}
+        title="Archive this habit?"
+        message="Your history will stay saved."
+        confirmLabel="Archive habit"
+        destructive
+        onCancel={() => setConfirmingArchive(false)}
+        onConfirm={onArchiveConfirmed}
+      />
+
+      <ConfirmationModal
+        visible={pendingExit !== null}
+        title="Discard changes?"
+        message="This habit will stay as it is."
+        confirmLabel="Discard"
+        cancelLabel="Keep editing"
+        destructive
+        onCancel={() => setPendingExit(null)}
+        onConfirm={() => {
+          const action = pendingExit;
+          setPendingExit(null);
+          navigation.dispatch(action);
+        }}
+      />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   flex: {
     flex: 1,
   },
@@ -170,7 +189,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   archivePressed: {
-    opacity: 0.6,
+    opacity: motion.pressed.fade,
   },
   archiveLabel: {
     ...typography.body,
@@ -186,4 +205,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.xl,
   },
-});
+  });

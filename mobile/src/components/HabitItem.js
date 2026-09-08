@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors, motion, radii, spacing, typography } from '../theme';
+import { motion, radii, spacing, typography, useThemedStyles } from '../theme';
 
 /**
  * A habit as a line of type, not a checkbox row.
@@ -21,6 +21,7 @@ import { colors, motion, radii, spacing, typography } from '../theme';
  * the list is being scrolled.
  */
 export function HabitItem({ habit, completed, onToggle, onOpen }) {
+  const styles = useThemedStyles(makeStyles);
   const progress = useRef(new Animated.Value(completed ? 1 : 0)).current;
   const rowPress = useRef(new Animated.Value(0)).current;
   const markPress = useRef(new Animated.Value(0)).current;
@@ -171,7 +172,8 @@ export function HabitItem({ habit, completed, onToggle, onOpen }) {
 
 const MARK_SIZE = 30;
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   wrap: {
     justifyContent: 'center',
   },
@@ -204,10 +206,12 @@ const styles = StyleSheet.create({
     ...typography.habitName,
     color: colors.text,
   },
+  // The same step HabitRow puts under a habit's name for its schedule: the
+  // second line of a habit is one relationship, wherever the habit is drawn.
   detail: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
   mark: {
     width: MARK_SIZE,
@@ -243,4 +247,4 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderColor: colors.textOnAccent,
   },
-});
+  });

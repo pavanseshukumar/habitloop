@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { WEEKDAYS, weekdayIdFor } from '../data/weekdays';
+import { normalizeReminder } from '../lib/reminders';
 
 /**
  * The state behind "what is this habit, and when?" -- shared by creating a
@@ -19,6 +20,7 @@ export function useHabitForm(initial) {
   const [detail, setDetail] = useState(baseline.detail);
   const [frequency, setFrequency] = useState(baseline.frequency);
   const [days, setDays] = useState(baseline.days);
+  const [reminder, setReminder] = useState(baseline.reminder);
 
   // Newlines are stripped rather than blocked so a pasted line break collapses
   // instead of turning the field into a paragraph.
@@ -38,6 +40,21 @@ export function useHabitForm(initial) {
     );
   }, []);
 
+  /**
+   * Turning a reminder on is the caller's decision to make, not the form's.
+   *
+   * The screen has to ask the operating system first, and may be told no, so
+   * the form only ever records an outcome someone else has already settled.
+   * That is why there is no `toggleReminder` here: an unconditional toggle
+   * would let the UI show a reminder as on while nothing is able to deliver it.
+   */
+  const enableReminder = useCallback(() => setReminder((r) => ({ ...r, enabled: true })), []);
+  const disableReminder = useCallback(() => setReminder((r) => ({ ...r, enabled: false })), []);
+  const setReminderTime = useCallback(
+    (hour, minute) => setReminder((r) => ({ ...r, hour, minute })),
+    []
+  );
+
   const trimmedName = name.trim();
   const trimmedDetail = detail.trim();
 
@@ -48,6 +65,7 @@ export function useHabitForm(initial) {
     detail: trimmedDetail,
     frequency,
     days: frequency === 'selected' ? days : [],
+    reminder,
   };
 
   // One real character is the whole bar for a name -- no arbitrary minimum.
@@ -62,17 +80,22 @@ export function useHabitForm(initial) {
     values.name !== baseline.name ||
     values.detail !== baseline.detail ||
     values.frequency !== baseline.frequency ||
-    !sameDays(values.days, baseline.days);
+    !sameDays(values.days, baseline.days) ||
+    !sameReminder(values.reminder, baseline.reminder);
 
   return {
     name,
     detail,
     frequency,
     days,
+    reminder,
     changeName,
     changeDetail,
     selectFrequency,
     toggleDay,
+    enableReminder,
+    disableReminder,
+    setReminderTime,
     values,
     canSave,
     hasText,
@@ -89,7 +112,14 @@ function toValues(habit) {
     detail: typeof habit?.detail === 'string' ? habit.detail.trim() : '',
     frequency,
     days: frequency === 'selected' && Array.isArray(habit?.days) ? orderDays(habit.days) : [],
+    // A new habit starts with no reminder, which is the whole default: nothing
+    // the user has not asked for ever ends up switched on.
+    reminder: normalizeReminder(habit?.reminder),
   };
+}
+
+function sameReminder(a, b) {
+  return a.enabled === b.enabled && a.hour === b.hour && a.minute === b.minute;
 }
 
 /** Monday-first, so two equal day sets compare equal whatever order they were tapped in. */

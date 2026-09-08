@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text } from 'react-native';
 
-import { colors, motion, radii, shadows, spacing, typography } from '../theme';
+import { motion, radii, spacing, typography, useTheme, useThemedStyles } from '../theme';
 
 /**
  * The one committing action on a form screen. Full width, brand-filled, and
@@ -13,6 +13,8 @@ import { colors, motion, radii, shadows, spacing, typography } from '../theme';
  * something you can see before you reach for it.
  */
 export function PrimaryButton({ label, onPress, disabled = false }) {
+  const { shadows } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const press = useRef(new Animated.Value(0)).current;
 
   const animate = (toValue) => {
@@ -47,7 +49,8 @@ export function PrimaryButton({ label, onPress, disabled = false }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   button: {
     backgroundColor: colors.brand,
     borderRadius: radii.pill,
@@ -61,7 +64,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   pressed: {
-    opacity: 0.9,
+    opacity: motion.pressed.surface,
   },
   label: {
     ...typography.button,
@@ -73,4 +76,4 @@ const styles = StyleSheet.create({
   labelDisabled: {
     color: colors.textSecondary,
   },
-});
+  });

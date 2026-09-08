@@ -4,10 +4,11 @@ import { StyleSheet, Text, View } from 'react-native';
 import { WEEKDAYS } from '../data/weekdays';
 import { formatDate } from '../lib/greeting';
 import { buildRhythm, toWeeks } from '../lib/rhythm';
-import { colors, spacing, typography } from '../theme';
+import { spacing, typography, useThemedStyles } from '../theme';
 
 /**
- * Four weeks of a habit, read at a glance.
+ * Four weeks of a habit, read at a glance -- the four it was last alive for,
+ * which for anything still going is the four just gone.
  *
  * The whole grid is one sentence: a small grey dot grows into a large coral
  * mark. A day the habit was due and has not happened yet is a quiet solid dot
@@ -26,6 +27,7 @@ import { colors, spacing, typography } from '../theme';
  * gutter of clear paper around it whatever the screen is wide.
  */
 export function RhythmGrid({ habit, completions, today }) {
+  const styles = useThemedStyles(makeStyles);
   const weeks = withoutEmptyWeeks(toWeeks(buildRhythm(habit, completions, today)));
   const [markSize, setMarkSize] = useState(MAX_MARK);
 
@@ -72,7 +74,7 @@ export function RhythmGrid({ habit, completions, today }) {
 }
 
 /** The states that draw nothing at all: days outside the habit's own life. */
-const MARKLESS = new Set(['before', 'after', 'upcoming']);
+const MARKLESS = new Set(['before', 'inactive', 'after', 'upcoming']);
 
 /**
  * Drops the weeks at either end in which nothing is drawn.
@@ -87,14 +89,16 @@ const MARKLESS = new Set(['before', 'after', 'upcoming']);
  * starts small and grows a row a week until it is the full four -- the record
  * filling in as the habit gets a history, with nothing to explain.
  *
- * At the other end the same thing happens to an archived habit, whose last week
- * or two are blank because it had already ended. A closed record should stop
- * where the habit stopped rather than trail off past it.
+ * The trailing trim is defensive rather than load-bearing: buildRhythm ends an
+ * archived habit's window on the week it was put away and an active one's on
+ * this week, so the last row always holds something. It stays because the rule
+ * it encodes -- a record stops where the habit stopped -- should not depend on
+ * that remaining true.
  *
- * Blank runs only ever occur at the ends -- 'before' comes first, 'after' and
- * 'upcoming' last -- so this never takes a bite out of the middle. An active
- * habit is never trimmed at the end, because its last week holds today and
- * today always draws something.
+ * Only the ends are trimmed. A habit put down and picked back up can have a
+ * blank stretch in the middle of its record, and that stretch is the point --
+ * it is the season the user spent away, and closing it up would be the grid
+ * quietly claiming the habit ran straight through.
  */
 function withoutEmptyWeeks(weeks) {
   const drawn = (week) => week.some((day) => !MARKLESS.has(day.state));
@@ -114,10 +118,12 @@ const DESCRIPTIONS = {
   unscheduled: 'not scheduled',
   upcoming: 'still to come',
   before: 'before this habit began',
+  inactive: 'not active on this day',
   after: 'after this habit was archived',
 };
 
 function RhythmDay({ day, markSize }) {
+  const styles = useThemedStyles(makeStyles);
   const box = { width: markSize, height: markSize };
 
   return (
@@ -153,7 +159,8 @@ const WAITING_SIZE = 10;
 const IDLE_SIZE = 4;
 const TODAY_SIZE = 4;
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   // A clear break before the record starts: the letters label the columns, they
   // are not the first row of it.
   weekdays: {
@@ -217,4 +224,4 @@ const styles = StyleSheet.create({
   todayDotVisible: {
     backgroundColor: colors.brand,
   },
-});
+  });

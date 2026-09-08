@@ -2,6 +2,19 @@ import { useEffect, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { toDateKey } from '../lib/dates';
+import { getVoiceWindow } from '../lib/greeting';
+
+/**
+ * The two things about "now" that any screen actually reads: which day it is,
+ * and which part of the day it is.
+ *
+ * Both belong here because both can go stale the same way. The day is the one
+ * that matters for correctness -- a completion filed under yesterday is data
+ * loss -- and the part of the day is the one that matters for the voice: the
+ * screen greets the hour, and Today never unmounts, so an app left open
+ * through five o'clock would go on saying "Good afternoon" all evening.
+ */
+const momentKey = (date) => `${toDateKey(date)} ${getVoiceWindow(date)}`;
 
 /**
  * Today's date, kept honest when the day changes underneath a mounted screen.
@@ -16,9 +29,13 @@ import { toDateKey } from '../lib/dates';
  * (the common case, and the only one that survives the OS throttling timers),
  * and sitting on the screen through midnight.
  *
- * The same Date object is returned unless the local calendar day actually
- * changed, so callers can keep it in dependency arrays without re-rendering on
- * every foreground.
+ * The same Date object is returned unless the moment above has genuinely moved
+ * on, so callers can keep it in dependency arrays without re-rendering on every
+ * foreground. Only the foreground is watched for the part of the day: crossing
+ * five o'clock while someone is looking at the screen is a greeting a few
+ * minutes behind, which the next glance at the app corrects, and it is not
+ * worth a second timer to catch. Midnight keeps the one it has, because that
+ * boundary decides where a completion is filed rather than how it is greeted.
  */
 export function useToday() {
   const [today, setToday] = useState(() => new Date());
@@ -29,7 +46,7 @@ export function useToday() {
     const sync = () => {
       setToday((current) => {
         const now = new Date();
-        return toDateKey(now) === toDateKey(current) ? current : now;
+        return momentKey(now) === momentKey(current) ? current : now;
       });
       scheduleNextMidnight();
     };

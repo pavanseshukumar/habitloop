@@ -1,7 +1,7 @@
 import { WEEKDAYS, weekdayIdFor } from '../data/weekdays';
 import { completedDatesFor } from './completions';
 import { fromDateKey, startOfWeek, toDateKey } from './dates';
-import { matchesSchedule } from './schedule';
+import { wasScheduledOn } from './history';
 
 /**
  * One quiet observation about a habit, or nothing at all.
@@ -31,6 +31,12 @@ const WEEKDAY_MIN_LEAD = 2;
 // completions in a single burst is enthusiasm, not a rhythm.
 const RHYTHM_MIN_COMPLETIONS = 8;
 const RHYTHM_MIN_WEEKS = 3;
+
+// Thirteen weeks with something in them, which is where "months" stops being a
+// flourish and becomes arithmetic: thirteen distinct week-starts cannot fit in
+// less than thirteen weeks, so the span is a quarter of a year at minimum. The
+// sentence is true by construction rather than by estimate.
+const ESTABLISHED_MIN_WEEKS = 13;
 
 /**
  * The single observation to show for this habit, as { kind, text }, or null.
@@ -73,16 +79,19 @@ function relevantDates(habit, completions, today) {
 /**
  * Which day of the week this habit actually happens on, when one stands out.
  *
- * Only days the habit is due are counted. A Monday/Wednesday/Friday habit has
- * no Tuesdays to show up on, and reading that absence as a preference would be
- * describing the schedule back to the user as if it were a discovery.
+ * Only days the habit was due are counted, judged by the schedule that was in
+ * force at the time. A Monday/Wednesday/Friday habit has no Tuesdays to show
+ * up on, and reading that absence as a preference would be describing the
+ * schedule back to the user as if it were a discovery. Asking today's schedule
+ * instead would be worse: switching to daily would silently re-weigh months of
+ * completed days that were never in question.
  */
 function weekdayInsight(habit, dates) {
   const counts = new Map();
 
   for (const key of dates) {
     const date = fromDateKey(key);
-    if (!matchesSchedule(habit, date)) continue;
+    if (!wasScheduledOn(habit, date)) continue;
 
     const id = weekdayIdFor(date);
     counts.set(id, (counts.get(id) ?? 0) + 1);
@@ -117,12 +126,29 @@ function weekdayInsight(habit, dates) {
  *
  * Said without a number, because the count is already the largest thing on
  * this screen and repeating it here would turn a sentence into a statistic.
+ *
+ * Two sentences, because one stops being true. "Becoming" is the right word in
+ * the second month and the wrong one in the sixth: a habit someone has kept for
+ * a quarter of a year is not on its way to being part of their week, it has
+ * been part of their week for months, and a screen that cannot tell those apart
+ * says the same beginner's sentence forever. This is the only place the passage
+ * of time changes what the app says, and it is deliberately a change of tense
+ * rather than an extra line -- still one observation, still no number in it.
  */
 function rhythmInsight(habit, dates) {
   if (dates.length < RHYTHM_MIN_COMPLETIONS) return null;
 
   const weeks = new Set(dates.map((key) => toDateKey(startOfWeek(fromDateKey(key)))));
   if (weeks.size < RHYTHM_MIN_WEEKS) return null;
+
+  if (weeks.size >= ESTABLISHED_MIN_WEEKS) {
+    return {
+      kind: 'established',
+      text: habit.archivedAt
+        ? 'This was part of your week for months.'
+        : 'This has been part of your week for months.',
+    };
+  }
 
   return {
     kind: 'rhythm',

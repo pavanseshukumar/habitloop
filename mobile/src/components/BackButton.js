@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { colors, layout, spacing } from '../theme';
+import { layout, motion, spacing, useThemedStyles } from '../theme';
 
 /**
  * The unobtrusive way back, shared by every pushed screen so they all sit the
@@ -11,6 +11,7 @@ import { colors, layout, spacing } from '../theme';
  * only thing that dims is the chevron drawn in the middle of it.
  */
 export function BackButton({ onPress }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <Pressable
       onPress={onPress}
@@ -23,7 +24,8 @@ export function BackButton({ onPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   button: {
     width: layout.touchTarget,
     height: layout.touchTarget,
@@ -31,7 +33,7 @@ const styles = StyleSheet.create({
     marginLeft: -spacing.md,
   },
   pressed: {
-    opacity: 0.5,
+    opacity: motion.pressed.fade,
   },
   // The same two-border trick as the completion check, pointed left.
   chevron: {
@@ -43,4 +45,4 @@ const styles = StyleSheet.create({
     borderColor: colors.brand,
     transform: [{ rotate: '45deg' }],
   },
-});
+  });

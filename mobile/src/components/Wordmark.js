@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
 
-import { colors, typography } from '../theme';
+import { typography, useThemedStyles } from '../theme';
 
 /**
  * The Habit Loop wordmark: one name, not two words.
@@ -28,6 +28,7 @@ const SEGMENTS = [
 const SPACE_SCALE = 0.65;
 
 export function Wordmark({ variant = 'wordmark', style }) {
+  const styles = useThemedStyles(makeStyles);
   const scale = typography[variant] ?? typography.wordmark;
   const narrowSpace = { fontSize: Math.round(scale.fontSize * SPACE_SCALE) };
 
@@ -47,11 +48,12 @@ export function Wordmark({ variant = 'wordmark', style }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   base: {
     color: colors.brand,
   },
   accent: {
     color: colors.accent,
   },
-});
+  });

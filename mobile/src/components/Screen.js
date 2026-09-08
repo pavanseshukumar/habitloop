@@ -1,13 +1,14 @@
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, layout } from '../theme';
+import { layout, useThemedStyles } from '../theme';
 
 /**
  * Standard screen shell: brand background, safe-area insets, and the shared
  * horizontal gutter. Screens supply their own vertical rhythm.
  */
 export function Screen({ children, style, edges = ['top', 'bottom'] }) {
+  const styles = useThemedStyles(makeStyles);
   return (
     <SafeAreaView style={styles.safeArea} edges={edges}>
       <View style={[styles.content, style]}>{children}</View>
@@ -15,7 +16,8 @@ export function Screen({ children, style, edges = ['top', 'bottom'] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -28,4 +30,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.screenPaddingX,
     paddingVertical: layout.screenPaddingY,
   },
-});
+  });

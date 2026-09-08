@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 
-import { colors, motion, spacing, typography } from '../theme';
+import { motion, spacing, typography, useThemedStyles } from '../theme';
 
 /**
  * Where the day stands, as one line of type and one soft bar.
@@ -15,6 +15,7 @@ import { colors, motion, spacing, typography } from '../theme';
  * that is the point. No percentage, no score, nothing to be behind on.
  */
 export function ProgressSummary({ completed, total }) {
+  const styles = useThemedStyles(makeStyles);
   const ratio = total > 0 ? completed / total : 0;
   const fill = useRef(new Animated.Value(ratio)).current;
   const allDone = total > 0 && completed === total;
@@ -30,11 +31,49 @@ export function ProgressSummary({ completed, total }) {
     }).start();
   }, [ratio, fill]);
 
+  // The label used to announce the finished day at the first frame, while the
+  // bar under it was still a third of a second from showing it -- the words
+  // arriving ahead of the thing they describe, which is the one moment on this
+  // screen where the two halves of the summary disagreed. Now the new words
+  // rise into place on the bar's own timing, so what the user sees is the last
+  // of the coral filling and the sentence landing together.
+  //
+  // Only the crossing matters. A label that faded on every completion would be
+  // a flicker under each tap, so this watches whether the day is finished and
+  // nothing else: "2 of 4" becoming "3 of 4" is the bar's news to tell.
+  const arrival = useRef(new Animated.Value(1)).current;
+  const wasAllDone = useRef(allDone);
+
+  useEffect(() => {
+    if (wasAllDone.current === allDone) return;
+    wasAllDone.current = allDone;
+
+    arrival.setValue(0);
+    Animated.timing(arrival, {
+      toValue: 1,
+      // Finishing settles with the bar. Taking it back is quicker, the way
+      // undoing is everywhere else in the app.
+      duration: allDone ? motion.duration.settle : motion.duration.quick,
+      easing: motion.easing.out,
+      useNativeDriver: true,
+    }).start();
+  }, [allDone, arrival]);
+
   return (
     <View>
-      <Text style={[styles.count, allDone && styles.countDone]}>
+      <Animated.Text
+        style={[
+          styles.count,
+          allDone && styles.countDone,
+          {
+            opacity: arrival,
+            transform: [
+              { translateY: arrival.interpolate({ inputRange: [0, 1], outputRange: [3, 0] }) },
+            ],
+          },
+        ]}>
         {allDone ? 'All done today' : `${completed} of ${total} done`}
-      </Text>
+      </Animated.Text>
       <View style={styles.track}>
         <Animated.View style={[styles.fill, { transform: [{ scaleX: fill }] }]} />
       </View>
@@ -44,7 +83,8 @@ export function ProgressSummary({ completed, total }) {
 
 const TRACK_HEIGHT = 4;
 
-const styles = StyleSheet.create({
+const makeStyles = (colors, shadows) =>
+  StyleSheet.create({
   count: {
     ...typography.label,
     textTransform: 'uppercase',
@@ -77,4 +117,4 @@ const styles = StyleSheet.create({
     // Grow from the left edge rather than out from the centre.
     transformOrigin: 'left',
   },
-});
+  });
