@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HabitItem } from '../components/HabitItem';
@@ -11,7 +11,7 @@ import { toDateKey } from '../lib/dates';
 import { useToday } from '../hooks/useToday';
 import { completionFeedback, undoFeedback } from '../lib/haptics';
 import { formatDate, getDayStatement, getDayVoice } from '../lib/greeting';
-import { isReturningHabit } from '../lib/recovery';
+import { hasReturnedToday } from '../lib/recovery';
 import { nextScheduledDay, scheduledOn } from '../lib/schedule';
 import { useHabits } from '../store/habits';
 import { layout, motion, radii, spacing, typography, useThemedStyles } from '../theme';
@@ -63,18 +63,20 @@ export function TodayScreen({ navigation }) {
     [now, completedCount]
   );
 
-  // Set when the user completes a habit they had been away from, and then left
-  // alone for the rest of the session. Session-only on purpose: coming back is
-  // a moment, not a status, so nothing about it is written down and a relaunch
-  // simply forgets it. Completing further habits never re-triggers or clears
-  // it, which is what keeps the line still instead of blinking per tap.
-  const [hasReturned, setHasReturned] = useState(false);
-
-  // A new day is a new context. Returning was yesterday's moment, and it
-  // should not still be on screen once the date underneath it has changed.
-  useEffect(() => {
-    setHasReturned(false);
-  }, [todayKey]);
+  // Read back out of the day, like everything else on this screen, rather than
+  // remembered from the tap that caused it. A latched flag could outlive the
+  // completion underneath it: undoing the mark took the return away and left
+  // the line still saying otherwise. Derived, an undo needs no handling at all
+  // -- the evidence goes back and the line goes with it.
+  //
+  // It still does not blink per tap. Completing a second habit does not disturb
+  // the first habit's completion, so the answer does not move, and a new day
+  // moves it without being told, because `now` is what the question is asked
+  // about.
+  const hasReturned = useMemo(
+    () => hasReturnedToday(todaysHabits, completions, now),
+    [todaysHabits, completions, now]
+  );
 
   // Null on an empty app, which is the only state that wants no line at all.
   const statement = getDayStatement(voice, {
@@ -95,12 +97,6 @@ export function TodayScreen({ navigation }) {
       undoFeedback();
     } else {
       completionFeedback();
-
-      // Asked before the completion lands: afterwards the gap is closed and
-      // the habit reads as any other. One returning habit is enough -- the
-      // others are not consulted, and nothing is counted.
-      const habit = todaysHabits.find((item) => item.id === id);
-      if (isReturningHabit(habit, completions, now)) setHasReturned(true);
     }
 
     toggleCompletion(id, todayKey);
@@ -144,6 +140,7 @@ export function TodayScreen({ navigation }) {
       </View>
 
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         {/* The greeting leads: it is the personal line, and the date is the
@@ -161,7 +158,7 @@ export function TodayScreen({ navigation }) {
         {activeHabits.length === 0 ? (
           <EmptyState onCreate={openCreate} hasHistory={archivedHabits.length > 0} />
         ) : (
-          <View>
+          <View style={styles.day}>
             {todaysHabits.length === 0 ? (
               // Habits exist, none fall on today. This is a rest day, not an
               // empty app, so it says when the rhythm picks up again rather
@@ -345,9 +342,26 @@ const SETTINGS_MARK_HEIGHT = (SETTINGS_KNOB + 2) * SETTINGS_KNOBS.length;
 
 const makeStyles = (colors, shadows) =>
   StyleSheet.create({
+  // Screen puts the app's gutter on every screen, which is right for all of
+  // them and one pixel short for this one: a padded ancestor is also a touch
+  // boundary on Android, and a habit's completion target is supposed to own the
+  // empty strip beside it. So the scrolling column is let back out to the
+  // screen edge and the gutter is re-applied inside it, where it is spacing
+  // rather than a wall. Nothing moves: what was one inset is now the same inset
+  // one level down.
+  scroll: {
+    marginHorizontal: -layout.screenPaddingX,
+  },
   content: {
     flexGrow: 1,
+    paddingHorizontal: layout.screenPaddingX,
     paddingBottom: spacing.xl,
+  },
+  // The day's column, carrying the gutter for everything in it except the
+  // habits. Its own edges run to the screen so the list below can do the same.
+  day: {
+    marginHorizontal: -layout.screenPaddingX,
+    paddingHorizontal: layout.screenPaddingX,
   },
   // Given real air beneath it so the wordmark reads as the app's signature
   // rather than as a heading for the greeting. The gap is the one the top bar
@@ -410,9 +424,15 @@ const makeStyles = (colors, shadows) =>
   },
   // The rows carry their own vertical padding, so the list only needs lifting
   // clear of the intro above and the progress bar below.
+  //
+  // Horizontally it is the one block that opts out of the gutter. A habit row
+  // draws itself inside the same margin as everything else, but it reaches the
+  // screen edge, because the strip beside a habit is not decoration -- it is
+  // the easiest place on the display to hit, and it belongs to the mark.
   list: {
     marginTop: spacing.sm,
     marginBottom: spacing.xl,
+    marginHorizontal: -layout.screenPaddingX,
   },
   restBlock: {
     marginBottom: spacing.lg,

@@ -81,15 +81,6 @@ export function getDayVoice(date = new Date(), { markedToday = false } = {}) {
 }
 
 /**
- * Replaces the time-based statement once the day's habits are all done.
- *
- * The point of finishing is the reinforcement beat of the loop, and a 12px
- * label alone was too quiet for it -- this lets the top of the screen notice,
- * without tipping into celebration.
- */
-export const COMPLETED_STATEMENT = "That's everything for today.";
-
-/**
  * Shown once the user has completed a habit they had been away from.
  *
  * Four words, and none of them about the absence. It does not say how long
@@ -104,18 +95,26 @@ export const RETURN_STATEMENT = 'Back in rhythm.';
  * rather than inside the screen so the order of precedence is a rule with a
  * name instead of a ternary in a render.
  *
- * Two things are being decided. Finishing the day wins over coming back to it,
- * because returning is how the day started and not how it ended. And a user
- * with no habits at all gets nothing: the empty state below already says the
- * only true thing there is to say, and a line above it about rhythm or about
- * what you did today would be the app talking over an empty app. Silence is
- * the correct third answer, which is why this returns null rather than
- * reaching for a fourth sentence.
+ * Two things are being decided, and one that used to be decided here no longer
+ * is. A finished day says nothing of its own in this slot. The label under the
+ * list already names it, in the place that owns where the day stands and
+ * beside the bar it describes -- so a sentence up here saying the same thing
+ * left the screen announcing one fact in three voices at once. This slot is
+ * the voice, and a finished day is allowed to just be spoken to.
+ *
+ * Finishing still outranks coming back, which is the thing that is decided:
+ * returning is how the day started and not how it ended, so an all-done day
+ * reads its voice rather than reopening the morning's news.
+ *
+ * And a user with no habits at all gets nothing: the empty state below already
+ * says the only true thing there is to say, and a line above it about rhythm
+ * or about what you did today would be the app talking over an empty app.
+ * Silence is the correct answer there, which is why this returns null rather
+ * than reaching for another sentence.
  */
 export function getDayStatement(voice, { hasHabits, allDone, hasReturned }) {
   if (!hasHabits) return null;
-  if (allDone) return COMPLETED_STATEMENT;
-  if (hasReturned) return RETURN_STATEMENT;
+  if (hasReturned && !allDone) return RETURN_STATEMENT;
   return voice.statement;
 }
 
@@ -145,3 +144,59 @@ export function getRhythmNote(lifetimeCount, recentCount, { archived = false } =
 
   return recentCount > 0 ? `${recentCount} in the last four weeks` : null;
 }
+
+/**
+ * How long a habit has been going, as one sentence, or null.
+ *
+ * The wording half of lib/insights.js's getHabitSpan, kept here because this is
+ * where the detail screen's copy lives and because the month names are already
+ * written down above. The derivation decides whether there is anything to say;
+ * this decides how to say it, and neither knows the other's job.
+ *
+ * Month resolution, deliberately. The record stores days and could name one,
+ * but "since March 14th" claims a precision about a beginning that nobody
+ * experiences -- a habit does not start on an afternoon, it starts around a
+ * time -- and the exactness would read as a receipt rather than as a memory.
+ *
+ * THE YEAR IS SHOWN ONLY WHEN LEAVING IT OUT WOULD MISLEAD
+ *
+ * Inside the current year the year is noise: everybody knows which March. Once
+ * an end falls outside it, saying "since March" would quietly invite the reader
+ * to assume this one and undersell the habit by however long they have kept it.
+ * So a stretch entirely in some earlier year carries the year once, at the end
+ * where it settles both halves, and a stretch that crosses a new year carries
+ * it on each end because there the two genuinely differ.
+ *
+ * A closed record is spoken about in the past, like everything else on that
+ * screen once a habit has been put down.
+ */
+export function getSpanNote(span, { archived = false, today = new Date() } = {}) {
+  if (!span || !span.fromKey) return null;
+
+  const thisYear = String(today.getFullYear());
+  const from = monthParts(span.fromKey);
+
+  // Still going: one end, and today is the other. The year is the anchor's own.
+  if (!archived || !span.toKey) {
+    const since = from.year === thisYear ? from.month : `${from.month} ${from.year}`;
+    return `You've been doing this since ${since}.`;
+  }
+
+  const to = monthParts(span.toKey);
+
+  // Both ends in one year that is not this one: said once, at the end, where it
+  // covers the whole stretch without being read twice.
+  if (from.year === to.year) {
+    const closed = to.year === thisYear ? to.month : `${to.month} ${to.year}`;
+    return `You did this from ${from.month} to ${closed}.`;
+  }
+
+  // A stretch that crossed a new year. Both years, because they differ.
+  return `You did this from ${from.month} ${from.year} to ${to.month} ${to.year}.`;
+}
+
+/** A date key split into the two things a duration is allowed to name. */
+function monthParts(key) {
+  return { month: MONTHS[Number(key.slice(5, 7)) - 1], year: key.slice(0, 4) };
+}
+

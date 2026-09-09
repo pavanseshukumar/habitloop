@@ -3,34 +3,47 @@ import { StyleSheet, Text } from 'react-native';
 import { typography, useThemedStyles } from '../theme';
 
 /**
- * The Habit Loop wordmark: one name, not two words.
+ * The Habit Loop wordmark: one name, one word.
  *
- * "habit loop" is a single brand name, so the lockup is tracked tight and the
- * word space is narrowed until the eye reads one thing. The two O's carry the
- * coral; every other letter is brand deep blue. No mark, no loop, no arrow --
- * the O's already do that job by being there.
+ * "habitloop" is set closed, exactly as the drawn logo sets it -- no word
+ * space, narrowed or otherwise. It had one for a while, on the reasoning that
+ * two syllables need air between them; the drawn artwork says otherwise, and a
+ * gap in the middle of a nine-letter name is the one thing that stops it
+ * reading as a name at all. The tracking in `typography.wordmark` is what
+ * holds the two halves together now, and it is the only thing that needs to.
+ *
+ * The two O's carry the coral; every other letter is brand deep blue. No mark,
+ * no loop, no arrow -- the O's already do that job by being there.
  *
  * This is still a stand-in for real artwork. Keeping the letters as data means
  * swapping in the drawn logo is one component, not a hunt through the app.
  */
 const SEGMENTS = [
-  { text: 'habit', accent: false },
-  { text: ' ', accent: false, narrow: true },
-  { text: 'l', accent: false },
+  { text: 'habitl', accent: false },
   { text: 'OO', accent: true },
   { text: 'p', accent: false },
 ];
 
-// A full word space is what makes "habit loop" look like two words -- and no
-// space at all makes it one unreadable one. Two thirds keeps both syllables
-// legible inside a single lockup. Set as a fraction of the type size rather
-// than a fixed number, so it holds together at whatever size it is used.
-const SPACE_SCALE = 0.65;
+/**
+ * The same lockup, one letter at a time.
+ *
+ * The splash animates each letter separately -- a dot becomes an `h`, another
+ * becomes an `a` -- and the one thing that must not happen is a second copy of
+ * the brand drifting out of step with this one. So the letters are derived
+ * from the segments above rather than written out again: change SEGMENTS and
+ * the splash changes with it, including which letters carry the coral.
+ *
+ * Nine entries, nine letters, nine dots. There is nothing in here that is not
+ * a letter, which is what lets the splash put a dot under every one of them
+ * without having to ask which are real.
+ */
+export const WORDMARK_LETTERS = SEGMENTS.flatMap(({ text, accent }) =>
+  [...text].map((char) => ({ char, accent: Boolean(accent) }))
+);
 
 export function Wordmark({ variant = 'wordmark', style }) {
   const styles = useThemedStyles(makeStyles);
   const scale = typography[variant] ?? typography.wordmark;
-  const narrowSpace = { fontSize: Math.round(scale.fontSize * SPACE_SCALE) };
 
   return (
     <Text
@@ -38,9 +51,7 @@ export function Wordmark({ variant = 'wordmark', style }) {
       accessibilityRole="header"
       accessibilityLabel="Habit Loop">
       {SEGMENTS.map((segment, index) => (
-        <Text
-          key={index}
-          style={[segment.accent && styles.accent, segment.narrow && narrowSpace]}>
+        <Text key={index} style={segment.accent && styles.accent}>
           {segment.text}
         </Text>
       ))}

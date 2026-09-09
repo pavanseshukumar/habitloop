@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useAppFonts } from './src/hooks/useAppFonts';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { SplashScreen as BrandSplash } from './src/screens/SplashScreen';
 import { HabitsProvider, useHabits } from './src/store/habits';
 import { ThemeProvider, useTheme } from './src/theme';
 
@@ -50,6 +51,15 @@ function AppContent({ fontsReady }) {
   const { colors, scheme, ready: themeReady } = useTheme();
   const canRender = fontsReady && habitsReady && themeReady;
 
+  // Once per launch, and this is what makes that true: the flag lives on the
+  // one component that mounts when the app starts and is never unmounted
+  // again. Navigating to a habit, to Settings, to the collection and back is
+  // the *navigator* changing, several levels below -- it cannot reach this,
+  // so the entrance cannot replay. A cold start is a new AppContent, which is
+  // exactly when it should play.
+  const [entered, setEntered] = useState(false);
+  const onEntered = useCallback(() => setEntered(true), []);
+
   useEffect(() => {
     if (canRender) SplashScreen.hideAsync().catch(() => {});
   }, [canRender]);
@@ -77,6 +87,17 @@ function AppContent({ fontsReady }) {
           whichever ground the app is currently painting behind them. */}
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
       <RootNavigator />
+
+      {/* Above the navigator rather than in front of it: Today is mounted,
+          laid out and correct underneath for the whole second the splash is
+          on screen, so the hand-off is one layer being removed rather than a
+          screen arriving. Nothing is pushed, nothing is popped, and there is
+          no second Hero anywhere in the app.
+
+          It is a sibling of the navigator inside the backdrop, so it is
+          painting the same `colors.background` the stack is -- the ground the
+          animation ends on is literally the ground Today begins on. */}
+      {entered ? null : <BrandSplash onDone={onEntered} />}
     </View>
   );
 }

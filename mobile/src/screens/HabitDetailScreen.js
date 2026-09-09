@@ -5,8 +5,8 @@ import { BackButton } from '../components/BackButton';
 import { RhythmGrid } from '../components/RhythmGrid';
 import { Screen } from '../components/Screen';
 import { completedDatesFor } from '../lib/completions';
-import { getRhythmNote } from '../lib/greeting';
-import { getHabitInsight } from '../lib/insights';
+import { getRhythmNote, getSpanNote } from '../lib/greeting';
+import { getHabitInsight, getHabitSpan } from '../lib/insights';
 import { buildRhythm, countCompleted } from '../lib/rhythm';
 import { useToday } from '../hooks/useToday';
 import { useHabits } from '../store/habits';
@@ -25,8 +25,13 @@ import { layout, motion, spacing, typography, useThemedStyles } from '../theme';
  * debt. For the same reason the count lives inside a sentence at reading size:
  * set as a number on its own it becomes a figure to beat.
  *
- * Reading order is the design: the name, what it amounts to, the record it came
- * from, and one quiet observation about it.
+ * Reading order is the design: the name, what it amounts to, how long it has
+ * been going, the record it came from, and one quiet observation about it.
+ *
+ * The count and the duration are one thought in two halves -- how much, and how
+ * long -- which is why the second sits inside the recognition block rather than
+ * in a slot of its own. Both are absent until the record can carry them, and
+ * absent is the whole design: this screen would rather say less than hedge.
  */
 export function HabitDetailScreen({ navigation, route }) {
   const styles = useThemedStyles(makeStyles);
@@ -71,6 +76,13 @@ export function HabitDetailScreen({ navigation, route }) {
   const lifetimeCount = completedDatesFor(completions, habit.id).length;
   const recentCount = countCompleted(buildRhythm(habit, completions, now));
   const note = getRhythmNote(lifetimeCount, recentCount, { archived: isArchived });
+  // How long this has been going, in months. Null until the record can carry
+  // the sentence -- the same evidence the observation below is held to, plus a
+  // month boundary to cross -- so a young habit simply has no line here.
+  const spanNote = getSpanNote(getHabitSpan(habit, completions, now), {
+    archived: isArchived,
+    today: now,
+  });
   // Usually null. It appears only once the history says something a person
   // would agree with, which for most habits is a long way in.
   const insight = getHabitInsight(habit, completions, now);
@@ -151,6 +163,12 @@ export function HabitDetailScreen({ navigation, route }) {
                 .
               </Text>
             )}
+
+            {/* The count says how much, and this says how long -- the axis the
+                record could never state before. Set quieter and tucked close
+                underneath, so the two read as one thought finishing rather than
+                as a second fact filed beneath the first. */}
+            {spanNote ? <Text style={styles.span}>{spanNote}</Text> : null}
           </View>
         </Band>
 
@@ -259,6 +277,14 @@ const makeStyles = (colors, shadows) =>
   recognitionStrong: {
     fontFamily: typography.habitTitle.fontFamily,
     color: colors.brand,
+  },
+  // The same quiet register as the archive notice and the line under the grid.
+  // Close enough to the sentence above to belong to it, and deliberately not
+  // emphasised: a duration is context for the count, not a second headline.
+  span: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
   },
   // Shorter than the break above it. The count and the rhythm it came from are
   // one movement, and the grid should read as the evidence for the sentence.

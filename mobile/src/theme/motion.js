@@ -21,12 +21,36 @@ export const motion = {
     base: 260,
     /** Something arriving or coming to rest, given a beat longer to land. */
     settle: 340,
+    /**
+     * The branded entrance, and the one deliberate exception to everything
+     * above.
+     *
+     * Every other duration here is short because motion should acknowledge a
+     * tap rather than stage a performance. This one is a performance: it plays
+     * once, on a cold launch, while the user is arriving rather than working,
+     * and it is the only moment in the app with nothing to interrupt. It is a
+     * whole timeline rather than a single movement -- nine dots emerging,
+     * settling, becoming a word and opening into the day -- and at anything
+     * near the interaction scale those beats collide instead of following one
+     * another.
+     */
+    entrance: 2150,
   },
   easing: {
     /** The house curve. Fast out of the gate, gentle into place. */
     out: Easing.out(Easing.cubic),
     /** Flatter, for press states, where cubic reads as sluggish. */
     press: Easing.out(Easing.quad),
+    /**
+     * No curve at all, for a driver that carries time rather than feel.
+     *
+     * The splash runs one animation from 0 to 1 and reads every phase off it.
+     * Easing that driver would push the same curve through all six phases and
+     * make it impossible for the emergence to decelerate while the portal
+     * accelerates, so the shaping happens per phase instead -- see
+     * lib/splash.js. This is the token that says the timeline is not opinionated.
+     */
+    linear: Easing.linear,
   },
   /**
    * How far something fades while it is being pressed.

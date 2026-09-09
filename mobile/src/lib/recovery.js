@@ -1,4 +1,4 @@
-import { completedDatesFor, isCompletedOn } from './completions';
+import { completedDatesFor, isCompletedOn, toggleCompletionOn } from './completions';
 import { addDays, fromDateKey, toDateKey } from './dates';
 import { wasScheduledOn } from './history';
 import { isScheduledOn } from './schedule';
@@ -42,6 +42,37 @@ export function isReturningHabit(habit, completions, today = new Date()) {
   if (!previousKey) return false;
 
   return hasScheduledGapBetween(habit, previousKey, todayKey);
+}
+
+/**
+ * Is today a day someone came back to?
+ *
+ * The same question as `isReturningHabit`, asked after the mark has landed
+ * instead of before it: lift today's completion back off and see whether what
+ * is left behind is a habit that had been away. One rule, asked at two moments,
+ * rather than a second rule about the first one.
+ *
+ * Reading it out of the completions rather than remembering the tap is the
+ * whole point. An undo is not an event this has to be told about -- it puts the
+ * evidence back exactly as it was, and the answer follows, because the evidence
+ * and the answer are the same object. The same habits and the same completions
+ * always give the same result, whatever order the user got there in.
+ *
+ * Only habits due today can qualify, which `isReturningHabit` already enforces,
+ * and one of them is enough. Nothing here counts, in keeping with the rest of
+ * the module: a day someone came back to is not a day with a score on it.
+ */
+export function hasReturnedToday(habits, completions, today = new Date()) {
+  const todayKey = toDateKey(today);
+
+  return habits.some((habit) => {
+    if (!isCompletedOn(completions, habit.id, todayKey)) return false;
+
+    // Toggling a day that is set is how this data model spells removal, so the
+    // history handed back to the rule is the one it was written to read.
+    const beforeToday = toggleCompletionOn(completions, habit.id, todayKey);
+    return isReturningHabit(habit, beforeToday, today);
+  });
 }
 
 /**

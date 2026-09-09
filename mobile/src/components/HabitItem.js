@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { motion, radii, spacing, typography, useThemedStyles } from '../theme';
+import { layout, motion, radii, spacing, typography, useThemedStyles } from '../theme';
 
 /**
  * A habit as a line of type, not a checkbox row.
@@ -115,8 +115,9 @@ export function HabitItem({ habit, completed, onToggle, onOpen }) {
   return (
     <Animated.View
       style={[styles.wrap, { opacity: arrival, transform: [{ translateY: arrivalShift }] }]}>
-      {/* Bleeds into the screen gutter so a press reads as the row lighting up,
-          not as a box drawn inside it. */}
+      {/* Stops short of the screen edge by less than the gutter, so a press
+          reads as the row lighting up rather than as a box drawn inside it.
+          The row runs to the edge now; the surface still does not. */}
       <Animated.View style={[styles.surface, { opacity: rowPress }]} pointerEvents="none" />
 
       <Animated.View style={[styles.row, { transform: [{ scale: rowScale }] }]}>
@@ -181,26 +182,48 @@ const makeStyles = (colors, shadows) =>
     position: 'absolute',
     top: spacing.xs,
     bottom: spacing.xs,
-    left: -spacing.md,
-    right: -spacing.md,
+    left: layout.screenPaddingX - spacing.md,
+    right: layout.screenPaddingX - spacing.md,
     borderRadius: radii.xl,
     backgroundColor: colors.surfaceMuted,
   },
+  // The row spans the screen so the mark's target can reach the edge of it.
+  // The words are put back where they have always been by this one padding --
+  // the same gutter Screen gives every other block, applied here instead of
+  // above, where it would also be a wall the target could not cross.
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingLeft: layout.screenPaddingX,
   },
   // The vertical padding lives on the targets, not the row, so both of them
   // are the full height of the row rather than just the height of their text.
   textTarget: {
     flex: 1,
     paddingVertical: spacing.lg,
-    paddingRight: spacing.md,
+    // The gap the words keep from the mark is unchanged -- most of it just
+    // belongs to the mark's target now instead of being split between the two.
+    paddingRight: spacing.xs,
   },
+  // The most-pressed control in the app, and so the one target that is not
+  // allowed to be merely as wide as the thing drawn inside it. The mark keeps
+  // its place on the content edge; the target around it is what grows, out to
+  // the app's 48pt convention on the left and to the screen edge on the right.
+  //
+  // The right half is padding rather than hitSlop on purpose. Slop is measured
+  // against a view's own box and then checked against its parents', so a target
+  // reaching past an ancestor is simply not delivered on Android -- which is
+  // exactly what happened here. Padding is the box, so there is nothing to
+  // reach past.
   markTarget: {
+    minWidth: layout.touchTarget,
     paddingVertical: spacing.lg,
-    paddingLeft: spacing.lg,
+    paddingLeft: spacing.xl,
+    paddingRight: layout.screenPaddingX,
     justifyContent: 'center',
+    // Keeps the mark on the content edge if the floor above ever becomes the
+    // thing setting this target's width.
+    alignItems: 'flex-end',
   },
   name: {
     ...typography.habitName,

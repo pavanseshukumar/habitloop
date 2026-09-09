@@ -147,7 +147,7 @@ export function inactiveReasonOn(habit, date) {
   if (isActiveOn(habit, date)) return null;
 
   const key = toDateKey(date);
-  const periods = Array.isArray(habit?.activePeriods) ? habit.activePeriods.filter(Boolean) : [];
+  const periods = periodsOf(habit);
 
   const start = earliestStart(periods);
   if (start !== null && key < start) return 'before';
@@ -161,19 +161,62 @@ export function inactiveReasonOn(habit, date) {
 }
 
 /**
+ * The first day the habit was ever running, or null if that is not knowable.
+ *
+ * The earliest start of any period. A period that begins unbounded is a record
+ * whose beginning was never written down -- a habit carried in from a build
+ * that did not keep one -- and the honest answer to "when did this start?" is
+ * then nothing at all, rather than the earliest date that happens to be stored
+ * beside it. Nothing here reaches for createdAt, for a completion or for the
+ * clock to fill that in: an unknown start is unknown, not today and not ancient.
+ */
+export function firstActiveDayKey(habit) {
+  return earliestStart(periodsOf(habit));
+}
+
+/**
  * The last day the habit was actually running, or null while it still is.
  *
  * The rhythm window ends here for an archived habit, so that what someone
  * built stays on screen instead of scrolling off the end of the calendar.
  */
 export function lastActiveDayKey(habit) {
-  const periods = Array.isArray(habit?.activePeriods) ? habit.activePeriods.filter(Boolean) : [];
+  const periods = periodsOf(habit);
   if (periods.length === 0) return null;
 
   const end = finalEnd(periods);
   if (end === null) return null;
 
   return previousKey(end);
+}
+
+/**
+ * The first day of the stretch the habit is living in now, or null.
+ *
+ * A different question from firstActiveDayKey, and the two only agree for a
+ * habit that was never put down. One archived in February and picked back up in
+ * March has been running since January and is *currently* running since March,
+ * and it is the second of those that describes what the user is doing today.
+ *
+ * While a habit is running, that stretch is its open period. Once it is put
+ * down it is the last one it lived, which keeps a retired habit describing the
+ * run it actually had rather than reverting to the one before it. Both are
+ * picked by latest start rather than by position, so a record whose periods
+ * were written out of order still resolves to one answer.
+ *
+ * An unbounded start is unknown here for the same reason it is above, and
+ * returns null. Nothing is reached for to replace it: what a duration should
+ * say when the periods cannot answer is not this module's question.
+ */
+export function currentPeriodStartKey(habit) {
+  const periods = periodsOf(habit);
+  // At most one period is ever open, but the record is read rather than
+  // trusted: if somehow two are, the later one is the stretch being lived.
+  const open = periods.filter((period) => (period.to ?? null) === null);
+
+  const current = latestPeriod(open.length > 0 ? open : periods);
+
+  return current === null ? null : current.from ?? null;
 }
 
 // --------------------------------------------------------------------------
@@ -313,21 +356,31 @@ function earliestStart(periods) {
   return earliest;
 }
 
-/** The end of the period that started last, or null if any period is still open. */
-function finalEnd(periods) {
-  let latestStart = null;
-  let end = null;
+/**
+ * The period that began last, or null if there are none.
+ *
+ * `isLater` reads an unbounded start as the beginning of time, so a period with
+ * no start never wins against a dated one. A tie keeps the entry seen first,
+ * which together with that rule makes the answer independent of the order the
+ * periods happen to be stored in.
+ */
+function latestPeriod(periods) {
+  let found = null;
 
   for (const period of periods) {
-    if ((period.to ?? null) === null) return null;
-    const from = period.from ?? null;
-    if (end === null || isLater(from, latestStart)) {
-      latestStart = from;
-      end = period.to;
-    }
+    if (found === null || isLater(period.from ?? null, found.from ?? null)) found = period;
   }
 
-  return end;
+  return found;
+}
+
+/** The end of the period that started last, or null if any period is still open. */
+function finalEnd(periods) {
+  if (periods.some((period) => (period.to ?? null) === null)) return null;
+
+  const last = latestPeriod(periods);
+
+  return last === null ? null : last.to ?? null;
 }
 
 const sortVersions = (versions) =>
@@ -342,5 +395,9 @@ function compareKeys(a, b) {
   if (b === null) return 1;
   return a < b ? -1 : 1;
 }
+
+/** The habit's periods, with anything unreadable dropped. */
+const periodsOf = (habit) =>
+  Array.isArray(habit?.activePeriods) ? habit.activePeriods.filter(Boolean) : [];
 
 const previousKey = (key) => toDateKey(addDays(fromDateKey(key), -1));
